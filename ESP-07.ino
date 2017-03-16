@@ -1,4 +1,4 @@
-#include <ESP8266WiFi.h>
+ #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
@@ -130,9 +130,9 @@ pinMode(Sw_2, INPUT_PULLUP);
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
 
-attachInterrupt( digitalPinToInterrupt(Btn_Config), Servicio_Btn_Config, RISING);
-attachInterrupt( digitalPinToInterrupt(Sw_1), Servicio_Sw_1, RISING);
-attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, RISING);
+attachInterrupt( digitalPinToInterrupt(Btn_Config), Servicio_Btn_Config,FALLING);
+attachInterrupt( digitalPinToInterrupt(Sw_1), Servicio_Sw_1, FALLING);
+attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, FALLING);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
   delay(10);
@@ -218,23 +218,24 @@ void loop() {
         if (n2 != contador2){
             n2 = contador2 ;
             digitalWrite(Relay_1,!digitalRead(Relay_1));
-            if(digitalRead(Relay_1)){client.publish("prueba/light1/confirm", "Light1 On");
+            if(digitalRead(Relay_1)){client.publish("prueba/light1/confirm", "Light 1 On");
                                         Serial.println("Relay 1 ON!!");
                                       }
-             else{client.publish("prueba/light1/confirm", "Light1 Off");
+             else{client.publish("prueba/light1/confirm", "Light 1 Off");
                      Serial.println("Relay 1 OFF!!");}
              }
           if (n3 != contador3){
             n3 = contador3 ;
             digitalWrite(Relay_2,!digitalRead(Relay_2));
-            if(digitalRead(Relay_2)){client.publish("prueba/light2/confirm", "Light2 On");
+            if(digitalRead(Relay_2)){client.publish("prueba/light2/confirm", "Light 2 On");
                                         Serial.println("Relay 2 ON!!");
                                       }
-             else{client.publish("prueba/light2/confirm", "Light2 Off");
+             else{client.publish("prueba/light2/confirm", "Light 2 Off");
                      Serial.println("Relay 2 OFF!!");}
              }
          
        }
+       
     if (n != contador){
              blink50();
               n = contador ;
