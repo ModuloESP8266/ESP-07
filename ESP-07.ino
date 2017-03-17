@@ -92,7 +92,7 @@ int dir_serverwan = 150;
 int dir_serverlan = 180;
 int dir_puerto = 210;
 
-float h ,t ,f;
+int h ,t ,f;
 
 ESP8266WebServer server(80);    //creo el servidor en el puerto 80
 WiFiClient wifiClient;          //creo el cliente
@@ -287,7 +287,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
           SensorHumTemp();
-          client.publish("prueba/sensor", "sensor ok");
+          client.publish("prueba/sensor/confirm", "sensor ok");
           }
        
    }
@@ -736,7 +736,7 @@ void SensorHumTemp(){
     Serial.print("Read DHT11 failed.");
     return;
   }
-  
+  t=(int)temperature;
   Serial.print("Sample OK: ");
   Serial.print((int)temperature); Serial.print(" *C, "); 
   Serial.print((int)humidity); Serial.println(" %");
