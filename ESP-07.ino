@@ -2,12 +2,16 @@
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
+#include <SimpleDHT.h>
+
 
 
 #define MQTT_SERVER_LAN "192.168.1.106"
 #define MQTT_SERVER_WAN "giovanazzi.ddns.net"
 
 
+
+SimpleDHT11 dht11;
 
 char* SERVER_LAN = " ";
 char* SERVER_WAN =" ";
@@ -36,7 +40,7 @@ const int Sw_1=12;
 const int Sw_2=13;
 const int Relay_1=4;
 const int Relay_2=5;
-
+const int pinDHT11 = 2;
 //********** fin pines **********************
 
 
@@ -88,7 +92,7 @@ int dir_serverwan = 150;
 int dir_serverlan = 180;
 int dir_puerto = 210;
 
-
+float h ,t ,f;
 
 ESP8266WebServer server(80);    //creo el servidor en el puerto 80
 WiFiClient wifiClient;          //creo el cliente
@@ -130,26 +134,25 @@ pinMode(Sw_2, INPUT_PULLUP);
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
 
+
 attachInterrupt( digitalPinToInterrupt(Btn_Config), Servicio_Btn_Config,FALLING);
 attachInterrupt( digitalPinToInterrupt(Sw_1), Servicio_Sw_1, FALLING);
 attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, FALLING);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
-  delay(10);
-  ReadDataEprom();
-  
-  Serial.print("Configuracion: ");
-  Serial.println(lee(dir_conf));
-  
-  if(lee(dir_conf)!="configurado"){
+delay(10);
+ReadDataEprom();
+Serial.print("Configuracion: ");
+Serial.println(lee(dir_conf));
+
+if(lee(dir_conf)!="configurado"){
     value=1;
+   }
     
-    }
-    
-  if(value){
+if(value){
             delay(10);
             Serial.println("**********MODO CONFIGURACION************");
-             scanWIFIS();
+            scanWIFIS();
             Serial.print("Configuring access point...");
             WiFi.mode(WIFI_AP);
             WiFi.softAP(ssid_AP, password_AP,channel,hidden);// (*char SSID,*char PASS,int CHANNEL,int HIDDEN=1 NO_HIDDEN=0)
@@ -279,6 +282,14 @@ void callback(char* topic, byte* payload, unsigned int length) {
           digitalWrite(Relay_2, LOW);
           client.publish("prueba/light2/confirm", "Light 2 Off");
       }
+   }
+
+    if(topicStr == "prueba/sensor"){
+       if(payload[0] == '1'){
+          SensorHumTemp();
+          client.publish("prueba/sensor", "sensor ok");
+          }
+       
    }
 }
 
@@ -634,10 +645,11 @@ void reconexionMQTT(){
 
       //if connected, subscribe to the topic(s) we want to be notified about
       if (client.connect((char*) clientName.c_str(),"diego","24305314")){
-        Serial.println("MTQQ Connected");
         client.subscribe(Topic1);
         client.subscribe(Topic2);
+        client.subscribe("prueba/sensor");
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
+        Serial.println("MTQQ Connected");
       }
       //otherwise print failed for debugging
       else{
@@ -713,4 +725,21 @@ void Servicio_Sw_2(){ if ( millis() > T03  + 250){
               T03 = millis();}
     }
 
-
+void SensorHumTemp(){
+ Serial.println("=================================");
+  Serial.println("Sample DHT11...");
+  
+  // read without samples.
+  byte temperature = 0;
+  byte humidity = 0;
+  if (dht11.read(pinDHT11, &temperature, &humidity, NULL)) {
+    Serial.print("Read DHT11 failed.");
+    return;
+  }
+  
+  Serial.print("Sample OK: ");
+  Serial.print((int)temperature); Serial.print(" *C, "); 
+  Serial.print((int)humidity); Serial.println(" %");
+  
+  
+  }
