@@ -4,18 +4,19 @@
 #include <PubSubClient.h>
 #include <SimpleDHT.h>
 
-
-
 #define MQTT_SERVER_LAN "192.168.1.106"
 #define MQTT_SERVER_WAN "giovanazzi.ddns.net"
-
-
 
 SimpleDHT11 dht11;
 
 char* SERVER_LAN = " ";
 char* SERVER_WAN =" ";
 
+
+String temp_str; //see last code block below use these to convert the float that you get back from DHT to a string =str
+String hum_str;
+char temp[50];
+char hum[50];
 
 /////////// antirebote /////////////
 volatile int contador = 0;   // Somos de lo mas obedientes
@@ -30,8 +31,6 @@ volatile int contador3 = 0;   // Somos de lo mas obedientes
 int n3 = contador3 ;
 long T03 = 0 ;  // Variable global para tiempo
 
-
-
 //**************** PINES     ****************
 
 const int Btn_Config=0;// boton configuracion
@@ -41,8 +40,8 @@ const int Sw_2=13;
 const int Relay_1=4;
 const int Relay_2=5;
 const int pinDHT11 = 2;
-//********** fin pines **********************
 
+//********** fin pines **********************
 
 volatile int tiempoLed=800000000;
 int address = 0;
@@ -56,7 +55,6 @@ const int hidden=0;
 
 int cont_mqtt=0;
 String Wan=" ";
-
 
 char ssid[20];
 char pass[20];
@@ -92,8 +90,6 @@ int dir_serverwan = 150;
 int dir_serverlan = 180;
 int dir_puerto = 210;
 
-int h ,t ,f;
-
 ESP8266WebServer server(80);    //creo el servidor en el puerto 80
 WiFiClient wifiClient;          //creo el cliente
 
@@ -127,13 +123,13 @@ void setup() {
 Serial.begin(115200);
 EEPROM.begin(256);
 delay(10);
+
 pinMode(Btn_Config, INPUT);
 pinMode(Led_Verde,OUTPUT);
 pinMode(Sw_1, INPUT_PULLUP);
 pinMode(Sw_2, INPUT_PULLUP);
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
-
 
 attachInterrupt( digitalPinToInterrupt(Btn_Config), Servicio_Btn_Config,FALLING);
 attachInterrupt( digitalPinToInterrupt(Sw_1), Servicio_Sw_1, FALLING);
@@ -171,8 +167,7 @@ if(value){
             Serial.print("hidden: "); Serial.println(hidden);
             Serial.println();
 
-      }
-  else{    Serial.println("**********MODO NORMAL************");  
+      }else{    Serial.println("**********MODO NORMAL************");  
          
            
            ServerLan_leido= lee(dir_serverlan);
@@ -190,10 +185,7 @@ if(value){
   modo=0;//normal
   EEPROM.write(0,modo);
   EEPROM.commit();
-
-
 }
-
 
 PubSubClient client(MQTT_SERVER_WAN, 1883, callback, wifiClient);
 
@@ -201,10 +193,9 @@ void loop() {
       if(value){
         server.handleClient();
         delay(500);
-        digitalWrite(Led_Verde,!digitalRead(Led_Verde));
-       
+        digitalWrite(Led_Verde,!digitalRead(Led_Verde)); 
         }
-  else{ 
+      else{ 
        //maintain MQTT connection
        client.loop();
        delay(10);
@@ -227,7 +218,7 @@ void loop() {
              else{client.publish("prueba/light1/confirm", "Light 1 Off");
                      Serial.println("Relay 1 OFF!!");}
              }
-          if (n3 != contador3){
+        if (n3 != contador3){
             n3 = contador3 ;
             digitalWrite(Relay_2,!digitalRead(Relay_2));
             if(digitalRead(Relay_2)){client.publish("prueba/light2/confirm", "Light 2 On");
@@ -238,8 +229,7 @@ void loop() {
              }
          
        }
-       
-    if (n != contador){
+      if (n != contador){
              blink50();
               n = contador ;
               modo=1;
@@ -250,7 +240,6 @@ void loop() {
          }
 
 }
-
 
 void callback(char* topic, byte* payload, unsigned int length) {
 
@@ -286,8 +275,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
     if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
-          SensorHumTemp();
-          client.publish("prueba/sensor/confirm", "sensor ok");
+        SensorHumTemp();
+       
+        temp_str.toCharArray(temp, temp_str.length()+1); 
+        hum_str.toCharArray(hum, hum_str.length()+1); 
+      
+        client.publish("prueba/sensor/temp/confirm",temp );
+        client.publish("prueba/sensor/hum/confirm",hum );
           }
        
    }
@@ -322,7 +316,6 @@ String arregla_simbolos(String a) {
   a.replace("%22", "\"");
   return a;
 }
-
 
 void scanWIFIS(){
   Serial.println("scan start");
@@ -380,7 +373,7 @@ void blink50(){
     delay(30);
      }
 
- void blinkLento(){
+void blinkLento(){
     digitalWrite(Led_Verde,false);
     delay(500);
     digitalWrite(Led_Verde,true);
@@ -674,7 +667,6 @@ void reconexionMQTT(){
 
 /////////////// FIN MQTT //////////////////////
 
-
 void BotonSW(){
   
    if (n2 != contador2){
@@ -690,7 +682,6 @@ void BotonSW(){
   
   }
 
-
 void BotonSW2(){
   
    if (n3 != contador3){
@@ -705,7 +696,6 @@ void BotonSW2(){
              }
   
   }
-
 
 void Servicio_Btn_Config(){
        if ( millis() > T0  + 250)
@@ -726,20 +716,19 @@ void Servicio_Sw_2(){ if ( millis() > T03  + 250){
     }
 
 void SensorHumTemp(){
- Serial.println("=================================");
-  Serial.println("Sample DHT11...");
-  
-  // read without samples.
+
+  digitalWrite(Led_Verde,false);
   byte temperature = 0;
   byte humidity = 0;
   if (dht11.read(pinDHT11, &temperature, &humidity, NULL)) {
     Serial.print("Read DHT11 failed.");
     return;
   }
-  t=(int)temperature;
-  Serial.print("Sample OK: ");
-  Serial.print((int)temperature); Serial.print(" *C, "); 
-  Serial.print((int)humidity); Serial.println(" %");
-  
+  temp_str=String((int)temperature);
+  hum_str=String((int)humidity);
+  Serial.print("Tem: "+temp_str);
+  Serial.println("  Hum: "+hum_str);
+   digitalWrite(Led_Verde,true);
+
   
   }
