@@ -15,8 +15,10 @@ char* SERVER_WAN =" ";
 
 String temp_str; //see last code block below use these to convert the float that you get back from DHT to a string =str
 String hum_str;
+String adc_str;
 char temp[50];
 char hum[50];
+char adc[10];
 
 /////////// antirebote /////////////
 volatile int contador = 0;   // Somos de lo mas obedientes
@@ -40,6 +42,7 @@ const int Sw_2=13;
 const int Relay_1=4;
 const int Relay_2=5;
 const int pinDHT11 = 2;
+const int Adc_Analog=A0;
 
 //********** fin pines **********************
 
@@ -124,6 +127,7 @@ Serial.begin(115200);
 EEPROM.begin(256);
 delay(10);
 
+pinMode(A0,INPUT);
 pinMode(Btn_Config, INPUT);
 pinMode(Led_Verde,OUTPUT);
 pinMode(Sw_1, INPUT_PULLUP);
@@ -138,6 +142,7 @@ attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, FALLING);
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
 delay(10);
 ReadDataEprom();
+
 Serial.print("Configuracion: ");
 Serial.println(lee(dir_conf));
 
@@ -251,7 +256,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Topic: ");
   Serial.println(topicStr);
   
-   if(topicStr == Topic1){
+  if(topicStr == "prueba/adc"){
+       if(payload[0] == '1'){
+         ADC();
+         adc_str.toCharArray(adc, adc_str.length()+1); 
+         client.publish("prueba/adc/confirm",adc);
+        } 
+   }
+  
+  if(topicStr == Topic1){
        if(payload[0] == '1'){
           digitalWrite(Relay_1, HIGH);
           client.publish("prueba/light1/confirm", "Light 1 On");
@@ -262,7 +275,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
         }
    }
   
-   if(topicStr == Topic2){
+  if(topicStr == Topic2){
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
           client.publish("prueba/light2/confirm", "Light 2 On");
@@ -273,20 +286,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
       }
    }
 
-    if(topicStr == "prueba/sensor"){
+  if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
-        SensorHumTemp();
-       
-        temp_str.toCharArray(temp, temp_str.length()+1); 
-        hum_str.toCharArray(hum, hum_str.length()+1); 
-      
-        client.publish("prueba/sensor/temp/confirm",temp );
-        client.publish("prueba/sensor/hum/confirm",hum );
+           SensorHumTemp();
+           temp_str.toCharArray(temp, temp_str.length()+1); 
+           hum_str.toCharArray(hum, hum_str.length()+1); 
+           client.publish("prueba/sensor/temp/confirm",temp );
+           client.publish("prueba/sensor/hum/confirm",hum );
           }
-       
-   }
-}
+     }
 
+  
+}
 // ***************     Funciones      ****************//
 
 String arregla_simbolos(String a) {
@@ -446,23 +457,6 @@ void ReadDataEprom(){
   Topic1_leido.toCharArray(Topic1, Topic1_tamano); //Transf. el String en un char array ya que es lo que nos pide WiFi.begin()
   Topic2_leido.toCharArray(Topic2, Topic2_tamano);
   Serial.println("leido.toArray");
-/*
-  
-  Serial.print("ssid: ");
-  Serial.println(ssid);     //para depuracion
-  Serial.print("pass: ");
-  Serial.println(pass);
-  Serial.print("Topic1: ");
-  Serial.println(Topic1);     //para depuracion
-  Serial.print("Topic2: ");
-  Serial.println(Topic2);
-  Serial.print("Server Wan MQTT: ");
-  Serial.println(ServerWan);
-  Serial.print("Server Lan MQTT: ");
-  Serial.println(ServerLan);
- */
-    Serial.println("print data");
-
   
   }
 
@@ -641,6 +635,8 @@ void reconexionMQTT(){
         client.subscribe(Topic1);
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
+        client.subscribe("prueba/adc");
+      
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
       }
@@ -728,7 +724,17 @@ void SensorHumTemp(){
   hum_str=String((int)humidity);
   Serial.print("Tem: "+temp_str);
   Serial.println("  Hum: "+hum_str);
-   digitalWrite(Led_Verde,true);
+  digitalWrite(Led_Verde,true);
 
   
   }
+  
+void ADC(){
+    digitalWrite(Led_Verde,false);
+    delay(20);
+    int lectura=analogRead(A0);
+    adc_str=String(lectura);
+    Serial.println("ADC:"+adc_str);
+    digitalWrite(Led_Verde,true);
+    }
+  
