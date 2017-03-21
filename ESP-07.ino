@@ -59,7 +59,6 @@ const int Adc_Analog=A0;
 
 //********** fin pines **********************
 
-volatile int tiempoLed=800000000;
 int address = 0;
 byte value;
 byte modo=0;
@@ -154,6 +153,7 @@ attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, FALLING);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
 delay(10);
+
 ReadDataEprom();
 
 Serial.print("Configuracion: ");
@@ -269,15 +269,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   Serial.print("Topic: ");
   Serial.println(topicStr);
   
-  if(topicStr == "prueba/adc"){
-       if(payload[0] == '1'){
-         ADC();
-         Consumo_ACS712() ;
-         adc_str.toCharArray(adc, adc_str.length()+1); 
-         client.publish("prueba/adc/confirm",adc);
-        } 
-   }
-  
   if(topicStr == Topic1){
        if(payload[0] == '1'){
           digitalWrite(Relay_1, HIGH);
@@ -302,6 +293,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
   if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
+        
            SensorHumTemp();
            temp_str.toCharArray(temp, temp_str.length()+1); 
            hum_str.toCharArray(hum, hum_str.length()+1); 
@@ -310,6 +302,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
           }
      }
 
+  if(topicStr == "prueba/adc"){
+       if(payload[0] == '1'){
+         Serial.println("ADC");
+         ADC();
+         Consumo_ACS712() ;
+         adc_str.toCharArray(adc, adc_str.length()+1); 
+         client.publish("prueba/adc/confirm",adc);
+        } 
+   }
   
 }
 // ***************     Funciones      ****************//
@@ -720,9 +721,10 @@ void Servicio_Sw_1(){ if ( millis() > T02  + 250){
               T02 = millis();}
     }
 
-void Servicio_Sw_2(){ if ( millis() > T03  + 250){ 
-               contador3++ ;
-              T03 = millis();}
+void Servicio_Sw_2(){ if ( millis() > T03  + 500){ 
+              contador3++ ;
+              T03 = millis();
+             }
     }
 
 void SensorHumTemp(){
@@ -751,7 +753,6 @@ void ADC(){
     Serial.println("ADC:"+adc_str);
     digitalWrite(Led_Verde,true);
     }
-  
 
 void Consumo_ACS712() {
  
@@ -760,7 +761,8 @@ void Consumo_ACS712() {
   float Voltaje;
   Voltage = getVPP();
   Serial.print("getVPP(): ");Serial.println(Voltaje);
-  Voltaje=TrueRMS();
+  //Voltaje=TrueRMS();
+  Voltaje=TrueRMSMuestras();
   Serial.print("TrueRMS(): ");Serial.println(Voltaje);
   VRMS = (Voltage/2.0) *0.707; 
 //  AmpsRMS = (VRMS * 1000)/mVperAmp;
@@ -771,7 +773,7 @@ void Consumo_ACS712() {
   AmpFinalRMS=AmpsRMS+ajuste;
 
 
- // Voltaje=TrueRMSMuestras();
+  
   
   VRMS = (Voltage/2.0) *0.707; 
   AmpsRMS=(Voltaje * 1000)/mVperAmp;
