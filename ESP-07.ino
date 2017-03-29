@@ -25,7 +25,7 @@ char adc[10];
 Measuring AC Current Using ACS712
 */
 const int sensorIn = A0;
-int mVperAmp = 185; // use 100 for 20A Module and 66 for 30A Module
+double  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
 double Voltage = 0;
 double VRMS = 0;
 double AmpsRMS = 0;
@@ -284,6 +284,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
           client.publish("prueba/light2/confirm", "Light 2 On");
+           Consumo_ACS712() ;
           }
       else{
           digitalWrite(Relay_2, LOW);
@@ -756,29 +757,15 @@ void ADC(){
 
 void Consumo_ACS712() {
  
-  float ajuste=0;//-.08;
+  float ajuste=-.02;//-.08;
   float AmpFinalRMS=0;
   float Voltaje;
-  Voltage = getVPP();
-  Serial.print("getVPP(): ");Serial.println(Voltaje);
-  //Voltaje=TrueRMS();
-  Voltaje=TrueRMSMuestras();
-  Serial.print("TrueRMS(): ");Serial.println(Voltaje);
-  VRMS = (Voltage/2.0) *0.707; 
-//  AmpsRMS = (VRMS * 1000)/mVperAmp;
-   AmpsRMS=(Voltaje * 1000)/mVperAmp;
- Serial.print(" AmpsRMS    ");
- Serial.println(AmpsRMS);
+
  
-  AmpFinalRMS=AmpsRMS+ajuste;
-
-
-  
-  
-  VRMS = (Voltage/2.0) *0.707; 
-  AmpsRMS=(Voltaje * 1000)/mVperAmp;
-  Serial.print(" AmpsRMSMuestras    ");
-  Serial.println(AmpsRMS);
+  AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
+ 
+ AmpFinalRMS=AmpsRMS+ajuste;
+ Serial.print("AmpFinalRMS:");Serial.println(AmpFinalRMS);
 
 }
 
@@ -809,11 +796,13 @@ float TrueRMSMuestras(){
   int Count=0;
   uint32_t start_time = millis();
   
-  while(Count < 2000) 
+  // while((millis()-start_time )< 200){ 
+  while(Count < 200) 
    {   
+       delayMicroseconds(960); 
        Count++;
        readValue = analogRead(A0);
-       conv=(readValue * 1.0)/1024.0;
+       conv=(((readValue-513)*1.0)/1024.0);
        Acumulador=Acumulador+sq(conv);
       
    }
@@ -822,33 +811,5 @@ float TrueRMSMuestras(){
      return result;
     }
 
-float getVPP(){
-  float result;
-  
-  int readValue;             //value read from the sensor
-  int maxValue = 0;          // store max value here
-  int minValue = 1024;          // store min value here
-  
-   uint32_t start_time = millis();
-   while((millis()-start_time) < 40) //sample for 1 Sec
-   {
-       readValue = analogRead(A0);
-       // see if you have a new maxValue
-       if (readValue > maxValue) 
-       {
-           /*record the maximum sensor value*/
-           maxValue = readValue;
-       }
-       if (readValue < minValue) 
-       {           /*record the maximum sensor value*/
-           minValue = readValue;
-       }
-   }
-   
-   // Subtract min from max
-   result = ((maxValue - minValue) * 1.0)/1024.0;
-      
-   return result;
- }
 
  
