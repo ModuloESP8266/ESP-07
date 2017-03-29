@@ -16,19 +16,26 @@ char* SERVER_WAN =" ";
 String temp_str; //see last code block below use these to convert the float that you get back from DHT to a string =str
 String hum_str;
 String adc_str;
+String AmpsRMS_str;
+String PowRMS_str;
 char temp[50];
 char hum[50];
 char adc[10];
+char rms[10];
+char power[10];
+
 
 
 /*
 Measuring AC Current Using ACS712
 */
 const int sensorIn = A0;
-double  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
-double Voltage = 0;
-double VRMS = 0;
-double AmpsRMS = 0;
+float  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
+float Voltage = 0;
+float VRMS = 0;
+float AmpsRMS = 0;
+float AmpFinalRMS=0;
+float PowRMS=0;
 ////////////////////////////////
 
 
@@ -277,6 +284,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
        else {
           digitalWrite(Relay_1, LOW);
           client.publish("prueba/light1/confirm", "Light 1 Off");
+        
         }
    }
   
@@ -284,17 +292,31 @@ void callback(char* topic, byte* payload, unsigned int length) {
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
           client.publish("prueba/light2/confirm", "Light 2 On");
-           Consumo_ACS712() ;
+          Consumo_ACS712() ;
+          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+          
+          client.publish("prueba/AmpsRMS/confirm",rms);
+          client.publish("prueba/PowRMS/confirm",power);
+         
+          Serial.print("Corriente 2: ");Serial.println(rms);
+          Serial.print("Potwncia 2 : ");Serial.println(power);
           }
       else{
           digitalWrite(Relay_2, LOW);
           client.publish("prueba/light2/confirm", "Light 2 Off");
+          Consumo_ACS712() ;
+          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+          client.publish("prueba/AmpsRMS/confirm",rms);
+          client.publish("prueba/PowRMS/confirm",power);
+          Serial.print("Corriente 2: ");Serial.println(rms);
+          Serial.print("Potwncia 2 : ");Serial.println(power);
       }
    }
 
   if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
-        
            SensorHumTemp();
            temp_str.toCharArray(temp, temp_str.length()+1); 
            hum_str.toCharArray(hum, hum_str.length()+1); 
@@ -303,16 +325,23 @@ void callback(char* topic, byte* payload, unsigned int length) {
           }
      }
 
-  if(topicStr == "prueba/adc"){
+  if(topicStr == "prueba/AmpsRMS"){
        if(payload[0] == '1'){
-         Serial.println("ADC");
-         ADC();
+         Serial.println("AmpsRMS:");
          Consumo_ACS712() ;
-         adc_str.toCharArray(adc, adc_str.length()+1); 
-         client.publish("prueba/adc/confirm",adc);
+         AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+         client.publish("prueba/AmpsRMS/confirm",rms);
         } 
    }
-  
+
+   if(topicStr == "prueba/PowRMS"){
+       if(payload[0] == '1'){
+         Serial.print("PowRMS:");
+         Consumo_ACS712() ;
+         PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+         client.publish("prueba/PowRMS/confirm",power);
+        } 
+   }
 }
 // ***************     Funciones      ****************//
 
@@ -651,7 +680,7 @@ void reconexionMQTT(){
         client.subscribe(Topic1);
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
-        client.subscribe("prueba/adc");
+        client.subscribe("prueba/AmpsRMS");
       
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
@@ -746,49 +775,27 @@ void SensorHumTemp(){
   
   }
   
-void ADC(){
-    digitalWrite(Led_Verde,false);
-    delay(20);
-    int lectura=analogRead(A0);
-    adc_str=String(lectura);
-    Serial.println("ADC:"+adc_str);
-    digitalWrite(Led_Verde,true);
-    }
-
 void Consumo_ACS712() {
  
   float ajuste=-.02;//-.08;
-  float AmpFinalRMS=0;
   float Voltaje;
 
- 
+  digitalWrite(Led_Verde,false);
   AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
- 
- AmpFinalRMS=AmpsRMS+ajuste;
- Serial.print("AmpFinalRMS:");Serial.println(AmpFinalRMS);
-
-}
-
-float TrueRMS(){
-  float result=0,conv=0,Acumulador=0,suma=0;
-  int readValue;             //value read from the sensor
-  int Count=0;
-  uint32_t start_time = millis();
-  
-  while((millis()-start_time) < 100) 
-   {   
-       Count++;
-       readValue = analogRead(A0);
-       conv=(readValue * 1.0)/1024.0;
-       Acumulador=Acumulador+sq(conv);
-      
-   }
-     Serial.print("ReadValue: ");
-     Serial.println(readValue);
-     suma=Acumulador/Count;
-     result=sqrt(suma);
-     return result;
+  AmpFinalRMS=AmpsRMS+ajuste;
+  if(AmpFinalRMS<0.04){
+    PowRMS=0;
     }
+  else{
+    PowRMS=220.0*AmpFinalRMS;
+    }
+  
+  PowRMS_str=String(PowRMS);
+  AmpsRMS_str=String(AmpFinalRMS);
+  Serial.print("AmpFinalRMS:");Serial.println(AmpFinalRMS);
+  Serial.print("PowRMS:");Serial.println(PowRMS);
+  digitalWrite(Led_Verde,true);
+}
 
 float TrueRMSMuestras(){
   float result=0,conv=0,Acumulador=0,suma=0;
