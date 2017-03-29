@@ -230,6 +230,15 @@ void loop() {
          }else{
            digitalWrite(Led_Verde,false);
            intento_conexion();
+            Consumo_ACS712() ;
+          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+          
+          client.publish("prueba/AmpsRMS/confirm",rms);
+          client.publish("prueba/PowRMS/confirm",power);
+         
+          Serial.print("Corriente 2: ");Serial.println(rms);
+          Serial.print("Potwncia 2 : ");Serial.println(power);
            }
        
         //MUST delay to allow ESP8266 WIFI functions to run
@@ -242,6 +251,15 @@ void loop() {
                                       }
              else{client.publish("prueba/light1/confirm", "Light 1 Off");
                      Serial.println("Relay 1 OFF!!");}
+              delay(50);
+             Consumo_ACS712() ;
+             AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+             PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+             client.publish("prueba/AmpsRMS/confirm",rms);
+             client.publish("prueba/PowRMS/confirm",power);
+             Serial.print("Corriente 2: ");Serial.println(rms);
+             Serial.print("Potwncia 2 : ");Serial.println(power);
+
              }
         if (n3 != contador3){
             n3 = contador3 ;
@@ -251,7 +269,18 @@ void loop() {
                                       }
              else{client.publish("prueba/light2/confirm", "Light 2 Off");
                      Serial.println("Relay 2 OFF!!");}
+              delay(50);
+             Consumo_ACS712() ;
+             AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+             PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+             client.publish("prueba/AmpsRMS/confirm",rms);
+             client.publish("prueba/PowRMS/confirm",power);
+             Serial.print("Corriente 2: ");Serial.println(rms);
+             Serial.print("Potwncia 2 : ");Serial.println(power);
+             
+             
              }
+            
          
        }
       if (n != contador){
@@ -291,6 +320,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if(topicStr == Topic2){
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
+          delay(50);
           client.publish("prueba/light2/confirm", "Light 2 On");
           Consumo_ACS712() ;
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
@@ -305,6 +335,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
       else{
           digitalWrite(Relay_2, LOW);
           client.publish("prueba/light2/confirm", "Light 2 Off");
+          delay(50);
           Consumo_ACS712() ;
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
           PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
@@ -715,10 +746,13 @@ void BotonSW(){
             
               digitalWrite(Relay_1,!digitalRead(Relay_1));
               if(digitalRead(Relay_1)){//client.publish("prueba/light1/confirm", "Light1 On");
+                
                                         Serial.println("Relay 1 ON!!");
                                       }
               else{//client.publish("prueba/light1/confirm", "Light1 Off");
                      Serial.println("Relay 1 OFF!!");}
+
+                 
              }
   
   }
@@ -735,6 +769,7 @@ void BotonSW2(){
               else{//client.publish("prueba/light2/confirm", "Light1 Off");
                      Serial.println("Relay 2 OFF!!");}
              }
+     
   
   }
 
@@ -777,19 +812,18 @@ void SensorHumTemp(){
   
 void Consumo_ACS712() {
  
-  float ajuste=-.02;//-.08;
+  float ajuste=-.00;//-.08;
   float Voltaje;
 
   digitalWrite(Led_Verde,false);
   AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
   AmpFinalRMS=AmpsRMS+ajuste;
-  if(AmpFinalRMS<0.04){
-    PowRMS=0;
+  if(AmpFinalRMS<0.031){
+    AmpFinalRMS=0;
+   
     }
-  else{
-    PowRMS=220.0*AmpFinalRMS;
-    }
-  
+  PowRMS=220.0*AmpFinalRMS;
+   
   PowRMS_str=String(PowRMS);
   AmpsRMS_str=String(AmpFinalRMS);
   Serial.print("AmpFinalRMS:");Serial.println(AmpFinalRMS);
@@ -809,7 +843,7 @@ float TrueRMSMuestras(){
        delayMicroseconds(960); 
        Count++;
        readValue = analogRead(A0);
-       conv=(((readValue-513)*1.0)/1024.0);
+       conv=(((readValue-512)*1.0)/1024.0);
        Acumulador=Acumulador+sq(conv);
       
    }
