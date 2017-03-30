@@ -223,26 +223,23 @@ void loop() {
       else{ 
        //maintain MQTT connection
        client.loop();
-       delay(10);
+      // delay(10);
+       
        if (WiFi.status() == WL_CONNECTED) { 
             digitalWrite(Led_Verde,true);
             reconexionMQTT();
          }else{
            digitalWrite(Led_Verde,false);
            intento_conexion();
-            Consumo_ACS712() ;
+          
+          Consumo_ACS712() ;
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
           PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
           
           client.publish("prueba/AmpsRMS/confirm",rms);
           client.publish("prueba/PowRMS/confirm",power);
-         
-          Serial.print("Corriente 2: ");Serial.println(rms);
-          Serial.print("Potwncia 2 : ");Serial.println(power);
-           }
-       
-        //MUST delay to allow ESP8266 WIFI functions to run
-        delay(10);   
+         }
+      
         if (n2 != contador2){
             n2 = contador2 ;
             digitalWrite(Relay_1,!digitalRead(Relay_1));
@@ -258,9 +255,10 @@ void loop() {
              client.publish("prueba/AmpsRMS/confirm",rms);
              client.publish("prueba/PowRMS/confirm",power);
              Serial.print("Corriente 2: ");Serial.println(rms);
-             Serial.print("Potwncia 2 : ");Serial.println(power);
+             Serial.print("Potencia 2 : ");Serial.println(power);
 
              }
+             
         if (n3 != contador3){
             n3 = contador3 ;
             digitalWrite(Relay_2,!digitalRead(Relay_2));
@@ -276,7 +274,7 @@ void loop() {
              client.publish("prueba/AmpsRMS/confirm",rms);
              client.publish("prueba/PowRMS/confirm",power);
              Serial.print("Corriente 2: ");Serial.println(rms);
-             Serial.print("Potwncia 2 : ");Serial.println(power);
+             Serial.print("Potencia 2 : ");Serial.println(power);
              
              
              }
@@ -300,8 +298,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
   //convert topic to string to make it easier to work with
   String topicStr = topic; 
 
-  //Print out some debugging info
-  Serial.println("Callback update.");
   Serial.print("Topic: ");
   Serial.println(topicStr);
   
@@ -315,13 +311,34 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/light1/confirm", "Light 1 Off");
         
         }
+          delay(50);
+          Consumo_ACS712() ;
+          
+          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
+          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+          
+          client.publish("prueba/AmpsRMS/confirm",rms);
+          client.publish("prueba/PowRMS/confirm",power);
+          
+          Serial.print("Corriente : ");Serial.println(rms);
+          Serial.print("Potencia  : ");Serial.println(power);
+        
    }
   
   if(topicStr == Topic2){
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
-          delay(50);
+        
           client.publish("prueba/light2/confirm", "Light 2 On");
+          
+          }
+      else{
+          digitalWrite(Relay_2, LOW);
+          
+          client.publish("prueba/light2/confirm", "Light 2 Off");
+        
+      }
+        delay(50);
           Consumo_ACS712() ;
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
           PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
@@ -329,21 +346,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/AmpsRMS/confirm",rms);
           client.publish("prueba/PowRMS/confirm",power);
          
-          Serial.print("Corriente 2: ");Serial.println(rms);
-          Serial.print("Potwncia 2 : ");Serial.println(power);
-          }
-      else{
-          digitalWrite(Relay_2, LOW);
-          client.publish("prueba/light2/confirm", "Light 2 Off");
-          delay(50);
-          Consumo_ACS712() ;
-          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-          client.publish("prueba/AmpsRMS/confirm",rms);
-          client.publish("prueba/PowRMS/confirm",power);
-          Serial.print("Corriente 2: ");Serial.println(rms);
-          Serial.print("Potwncia 2 : ");Serial.println(power);
-      }
+          Serial.print("Corriente : ");Serial.println(rms);
+          Serial.print("Potwncia  : ");Serial.println(power);
    }
 
   if(topicStr == "prueba/sensor"){
@@ -355,7 +359,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
            client.publish("prueba/sensor/hum/confirm",hum );
           }
      }
-
+  
+  if(topicStr == "prueba/PowRMS"){
+       if(payload[0] == '1'){
+         Serial.print("PowRMS:");
+         Consumo_ACS712() ;
+         PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
+         client.publish("prueba/PowRMS/confirm",power);
+        } 
+   }
+   
   if(topicStr == "prueba/AmpsRMS"){
        if(payload[0] == '1'){
          Serial.println("AmpsRMS:");
@@ -365,14 +378,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
         } 
    }
 
-   if(topicStr == "prueba/PowRMS"){
-       if(payload[0] == '1'){
-         Serial.print("PowRMS:");
-         Consumo_ACS712() ;
-         PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-         client.publish("prueba/PowRMS/confirm",power);
-        } 
-   }
 }
 // ***************     Funciones      ****************//
 
@@ -500,8 +505,7 @@ String lee(int addr) {
 
 //*******  L E E R    C O N F I G U R A C I O N    *****
 void ReadDataEprom(){
-  
-  
+    
   ssid_leido = lee(dir_ssid);      //leemos ssid y password
   pass_leido = lee(dir_pass);
   Topic1_leido=lee(dir_topic1);
@@ -672,7 +676,6 @@ void intento_conexion() {
  }
 
 /////////////   MQTT //////////////////// 
-
 void reconexionMQTT(){
 
     int cuenta=0;
@@ -712,7 +715,7 @@ void reconexionMQTT(){
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
         client.subscribe("prueba/AmpsRMS");
-      
+         client.subscribe("prueba/PowRMS");    
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
       }
@@ -763,15 +766,11 @@ void BotonSW2(){
               n3 = contador3 ;
             
               digitalWrite(Relay_2,!digitalRead(Relay_2));
-              if(digitalRead(Relay_2)){//client.publish("prueba/light2/confirm", "Light1 On");
-                                        Serial.println("Relay 2 ON!!");
+              if(digitalRead(Relay_2)){ Serial.println("Relay 2 ON!!");
                                       }
-              else{//client.publish("prueba/light2/confirm", "Light1 Off");
-                     Serial.println("Relay 2 OFF!!");}
+              else{ Serial.println("Relay 2 OFF!!");}
              }
-     
-  
-  }
+    }
 
 void Servicio_Btn_Config(){
        if ( millis() > T0  + 250)
@@ -818,10 +817,12 @@ void Consumo_ACS712() {
   digitalWrite(Led_Verde,false);
   AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
   AmpFinalRMS=AmpsRMS+ajuste;
-  if(AmpFinalRMS<0.031){
+  
+  if(AmpFinalRMS<0.031){// 1 muestra 26.1 mA =>mVperAmp 37mv
     AmpFinalRMS=0;
    
     }
+  
   PowRMS=220.0*AmpFinalRMS;
    
   PowRMS_str=String(PowRMS);
@@ -832,25 +833,26 @@ void Consumo_ACS712() {
 }
 
 float TrueRMSMuestras(){
+  
   float result=0,conv=0,Acumulador=0,suma=0;
   int readValue;             //value read from the sensor
   int Count=0;
   uint32_t start_time = millis();
-  
   // while((millis()-start_time )< 200){ 
-  while(Count < 200) 
+  while(Count < 400) 
    {   
        delayMicroseconds(960); 
+       //delayMicroseconds(500); 
        Count++;
        readValue = analogRead(A0);
-       conv=(((readValue-512)*1.0)/1024.0);
+       conv=(((readValue-511)*1.0)/1024.0);
        Acumulador=Acumulador+sq(conv);
       
    }
      suma=Acumulador/Count;
      result=sqrt(suma);
      return result;
-    }
+  }
 
 
  
