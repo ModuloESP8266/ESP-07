@@ -143,8 +143,7 @@ String pral = "<html>"
 void setup() {
 
 Serial.begin(115200);
-EEPROM.begin(256);
-delay(10);
+EEPROM.begin(512);
 
 pinMode(A0,INPUT);
 pinMode(Btn_Config, INPUT);
@@ -171,7 +170,7 @@ if(lee(dir_conf)!="configurado"){
    }
     
 if(value){
-            delay(10);
+          
             Serial.println("**********MODO CONFIGURACION************");
             scanWIFIS();
             Serial.print("Configuring access point...");
@@ -217,7 +216,7 @@ PubSubClient client(MQTT_SERVER_WAN, 1883, callback, wifiClient);
 void loop() {
       if(value){
         server.handleClient();
-        delay(500);
+        delay(400);
         digitalWrite(Led_Verde,!digitalRead(Led_Verde)); 
         }
       else{ 
@@ -248,7 +247,7 @@ void loop() {
                                       }
              else{client.publish("prueba/light1/confirm", "Light 1 Off");
                      Serial.println("Relay 1 OFF!!");}
-              delay(50);
+              delay(60);
              Consumo_ACS712() ;
              AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
              PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
@@ -267,7 +266,7 @@ void loop() {
                                       }
              else{client.publish("prueba/light2/confirm", "Light 2 Off");
                      Serial.println("Relay 2 OFF!!");}
-              delay(50);
+              delay(60);
              Consumo_ACS712() ;
              AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
              PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
@@ -311,7 +310,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/light1/confirm", "Light 1 Off");
         
         }
-          delay(50);
+          delay(60);
           Consumo_ACS712() ;
           
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
@@ -338,7 +337,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/light2/confirm", "Light 2 Off");
         
       }
-        delay(50);
+        delay(60);
           Consumo_ACS712() ;
           AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
           PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
@@ -432,7 +431,6 @@ void scanWIFIS(){
       Serial.print(WiFi.RSSI(i));
       Serial.print(")");
       Serial.println((WiFi.encryptionType(i) == ENC_TYPE_NONE)?" ":"*");
-      delay(10);
      
     }
   }
@@ -811,14 +809,14 @@ void SensorHumTemp(){
   
 void Consumo_ACS712() {
  
-  float ajuste=-.00;//-.08;
+  float ajuste=0.0;//-.08;
   float Voltaje;
 
   digitalWrite(Led_Verde,false);
   AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
   AmpFinalRMS=AmpsRMS+ajuste;
   
-  if(AmpFinalRMS<0.031){// 1 muestra 26.1 mA =>mVperAmp 37mv
+  if(AmpFinalRMS<0.040){// 1 muestra 26.1 mA =>mVperAmp 37mv
     AmpFinalRMS=0;
    
     }
