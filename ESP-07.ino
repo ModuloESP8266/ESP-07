@@ -274,7 +274,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
         
           }
      }
-  
+   if(topicStr == "prueba/reset"){
+       if(payload[0] == '1'){
+           ESP.reset();
+        
+          }
+     }
 }
 // ***************     Funciones      ****************//
 
@@ -602,7 +607,8 @@ void reconexionMQTT(){
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
         client.subscribe("prueba/AmpsRMS");
-        client.subscribe("prueba/PowRMS");    
+        client.subscribe("prueba/PowRMS"); 
+          client.subscribe("prueba/reset");       
         SensorHumTemp();
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
@@ -632,6 +638,7 @@ void reconexionMQTT(){
 
 void SensorHumTemp(){
 
+  long tiempo =millis();
   digitalWrite(Led_Verde,false);
   byte temperature = 0;
   byte humidity = 0;
@@ -643,12 +650,14 @@ void SensorHumTemp(){
   hum_str=String((int)humidity);
   Serial.print("Tem: "+temp_str);
   Serial.println("  Hum: "+hum_str);
-  digitalWrite(Led_Verde,true);
+  
   temp_str.toCharArray(temp, temp_str.length()+1); 
   hum_str.toCharArray(hum, hum_str.length()+1); 
   client.publish("prueba/sensor/temp/confirm",temp );
   client.publish("prueba/sensor/hum/confirm",hum );
   
+  digitalWrite(Led_Verde,true);
+  Serial.print("Tiempo de lectura de sensor:"); Serial.print(millis()-tiempo);Serial.println(" mseg.");
   }
 
 boolean antirebote(int pin){
