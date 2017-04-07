@@ -1,4 +1,4 @@
- #include <ESP8266WiFi.h>
+#include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <EEPROM.h>
 #include <PubSubClient.h>
@@ -8,51 +8,6 @@
 #define MQTT_SERVER_WAN "giovanazzi.ddns.net"
 
 SimpleDHT11 dht11;
-
-char* SERVER_LAN = " ";
-char* SERVER_WAN =" ";
-
-
-String temp_str; //see last code block below use these to convert the float that you get back from DHT to a string =str
-String hum_str;
-String adc_str;
-String AmpsRMS_str;
-String PowRMS_str;
-char temp[50];
-char hum[50];
-char adc[10];
-char rms[10];
-char power[10];
-
-
-
-/*
-Measuring AC Current Using ACS712
-*/
-const int sensorIn = A0;
-float  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
-float Voltage = 0;
-float VRMS = 0;
-float AmpsRMS = 0;
-float AmpFinalRMS=0;
-float PowRMS=0;
-////////////////////////////////
-
-
-
-/////////// antirebote /////////////
-volatile int contador = 0;   // Somos de lo mas obedientes
-int n = contador ;
-long T0 = 0 ;  // Variable global para tiempo
-
-volatile int contador2 = 0;   // Somos de lo mas obedientes
-int n2 = contador2 ;
-long T02 = 0 ;  // Variable global para tiempo
-
-volatile int contador3 = 0;   // Somos de lo mas obedientes
-int n3 = contador3 ;
-long T03 = 0 ;  // Variable global para tiempo
-
 //**************** PINES     ****************
 
 const int Btn_Config=0;// boton configuracion
@@ -65,6 +20,48 @@ const int pinDHT11 = 2;
 const int Adc_Analog=A0;
 
 //********** fin pines **********************
+
+char* SERVER_LAN = " ";
+char* SERVER_WAN =" ";
+
+String temp_str; //see last code block below use these to convert the float that you get back from DHT to a string =str
+String hum_str;
+String adc_str;
+char temp[50];
+char hum[50];
+char adc[10];
+
+//////////////////////// AGREGADO NUEVO ANTIREBOTE
+
+const int tiempoAntirebote=20;
+int cuentaNSw_1=0;
+int cuentaNSw_2=0;
+
+boolean estadoSw_2=false;
+boolean estadoSw_2Anterior=false;
+boolean stateSw_2=false;
+
+boolean estadoSw_1=false;
+boolean estadoSw_1Anterior=false;
+boolean stateSw_1=false;
+
+boolean estadoBtn_Config=false;
+boolean estadoBtn_ConfigAnterior=false;
+boolean stateBtn_Config=false;
+
+/*
+Measuring AC Current Using ACS712
+
+const int sensorIn = A0;
+float  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
+float Voltage = 0;
+float VRMS = 0;
+float AmpsRMS = 0;
+float AmpFinalRMS=0;
+float PowRMS=0;
+////////////////////////////////
+*/
+
 
 int address = 0;
 byte value;
@@ -145,17 +142,13 @@ void setup() {
 Serial.begin(115200);
 EEPROM.begin(512);
 
-pinMode(A0,INPUT);
+//pinMode(A0,INPUT);
 pinMode(Btn_Config, INPUT);
 pinMode(Led_Verde,OUTPUT);
-pinMode(Sw_1, INPUT_PULLUP);
-pinMode(Sw_2, INPUT_PULLUP);
+pinMode(Sw_1, INPUT);
+pinMode(Sw_2, INPUT);//tiene hardware antirebote
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
-
-attachInterrupt( digitalPinToInterrupt(Btn_Config), Servicio_Btn_Config,FALLING);
-attachInterrupt( digitalPinToInterrupt(Sw_1), Servicio_Sw_1, FALLING);
-attachInterrupt( digitalPinToInterrupt(Sw_2), Servicio_Sw_2, FALLING);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
 delay(10);
@@ -222,74 +215,19 @@ void loop() {
       else{ 
        //maintain MQTT connection
        client.loop();
-      // delay(10);
-       
        if (WiFi.status() == WL_CONNECTED) { 
             digitalWrite(Led_Verde,true);
             reconexionMQTT();
          }else{
            digitalWrite(Led_Verde,false);
            intento_conexion();
-          
-          Consumo_ACS712() ;
-          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-          
-          client.publish("prueba/AmpsRMS/confirm",rms);
-          client.publish("prueba/PowRMS/confirm",power);
          }
-      
-        if (n2 != contador2){
-            n2 = contador2 ;
-            digitalWrite(Relay_1,!digitalRead(Relay_1));
-            if(digitalRead(Relay_1)){client.publish("prueba/light1/confirm", "Light 1 On");
-                                        Serial.println("Relay 1 ON!!");
-                                      }
-             else{client.publish("prueba/light1/confirm", "Light 1 Off");
-                     Serial.println("Relay 1 OFF!!");}
-              delay(60);
-             Consumo_ACS712() ;
-             AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-             PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-             client.publish("prueba/AmpsRMS/confirm",rms);
-             client.publish("prueba/PowRMS/confirm",power);
-             Serial.print("Corriente 2: ");Serial.println(rms);
-             Serial.print("Potencia 2 : ");Serial.println(power);
 
-             }
-             
-        if (n3 != contador3){
-            n3 = contador3 ;
-            digitalWrite(Relay_2,!digitalRead(Relay_2));
-            if(digitalRead(Relay_2)){client.publish("prueba/light2/confirm", "Light 2 On");
-                                        Serial.println("Relay 2 ON!!");
-                                      }
-             else{client.publish("prueba/light2/confirm", "Light 2 Off");
-                     Serial.println("Relay 2 OFF!!");}
-              delay(60);
-             Consumo_ACS712() ;
-             AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-             PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-             client.publish("prueba/AmpsRMS/confirm",rms);
-             client.publish("prueba/PowRMS/confirm",power);
-             Serial.print("Corriente 2: ");Serial.println(rms);
-             Serial.print("Potencia 2 : ");Serial.println(power);
-             
-             
-             }
-            
-         
+          Botones();
+    
        }
-      if (n != contador){
-             blink50();
-              n = contador ;
-              modo=1;
-              EEPROM.write(0,modo);
-              EEPROM.commit();
-              delay(10);
-              ESP.reset();       
-         }
-
+  
+   BotonConfiguracion();
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -310,17 +248,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/light1/confirm", "Light 1 Off");
         
         }
-          delay(60);
-          Consumo_ACS712() ;
-          
-          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-          
-          client.publish("prueba/AmpsRMS/confirm",rms);
-          client.publish("prueba/PowRMS/confirm",power);
-          
-          Serial.print("Corriente : ");Serial.println(rms);
-          Serial.print("Potencia  : ");Serial.println(power);
+        
         
    }
   
@@ -337,46 +265,16 @@ void callback(char* topic, byte* payload, unsigned int length) {
           client.publish("prueba/light2/confirm", "Light 2 Off");
         
       }
-        delay(60);
-          Consumo_ACS712() ;
-          AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-          PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-          
-          client.publish("prueba/AmpsRMS/confirm",rms);
-          client.publish("prueba/PowRMS/confirm",power);
-         
-          Serial.print("Corriente : ");Serial.println(rms);
-          Serial.print("Potwncia  : ");Serial.println(power);
+       
    }
 
   if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
            SensorHumTemp();
-           temp_str.toCharArray(temp, temp_str.length()+1); 
-           hum_str.toCharArray(hum, hum_str.length()+1); 
-           client.publish("prueba/sensor/temp/confirm",temp );
-           client.publish("prueba/sensor/hum/confirm",hum );
+        
           }
      }
   
-  if(topicStr == "prueba/PowRMS"){
-       if(payload[0] == '1'){
-         Serial.print("PowRMS:");
-         Consumo_ACS712() ;
-         PowRMS_str.toCharArray(power, PowRMS_str.length()+1); 
-         client.publish("prueba/PowRMS/confirm",power);
-        } 
-   }
-   
-  if(topicStr == "prueba/AmpsRMS"){
-       if(payload[0] == '1'){
-         Serial.println("AmpsRMS:");
-         Consumo_ACS712() ;
-         AmpsRMS_str.toCharArray(rms, AmpsRMS_str.length()+1); 
-         client.publish("prueba/AmpsRMS/confirm",rms);
-        } 
-   }
-
 }
 // ***************     Funciones      ****************//
 
@@ -683,19 +581,10 @@ void reconexionMQTT(){
        if (WiFi.status() != WL_CONNECTED) {
         ESP.reset();
        }
-        
-       if (n != contador){ // consulta si se oprimio el boton de MODO CONFIGURACION
-              blink50();
-              n = contador ;
-              modo=1;
-              EEPROM.write(0,modo);
-              EEPROM.commit();
-              delay(10);
-              ESP.reset();       
-         }
- 
-       BotonSW(); BotonSW2();
-      
+
+       Botones();
+       BotonConfiguracion();
+     
        Serial.println("Attempting MQTT connection...");
 
       // Generate client name based on MAC address and last 8 bits of microsecond counter
@@ -713,7 +602,8 @@ void reconexionMQTT(){
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
         client.subscribe("prueba/AmpsRMS");
-         client.subscribe("prueba/PowRMS");    
+        client.subscribe("prueba/PowRMS");    
+        SensorHumTemp();
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
       }
@@ -740,55 +630,6 @@ void reconexionMQTT(){
 
 /////////////// FIN MQTT //////////////////////
 
-void BotonSW(){
-  
-   if (n2 != contador2){
-              n2 = contador2 ;
-            
-              digitalWrite(Relay_1,!digitalRead(Relay_1));
-              if(digitalRead(Relay_1)){//client.publish("prueba/light1/confirm", "Light1 On");
-                
-                                        Serial.println("Relay 1 ON!!");
-                                      }
-              else{//client.publish("prueba/light1/confirm", "Light1 Off");
-                     Serial.println("Relay 1 OFF!!");}
-
-                 
-             }
-  
-  }
-
-void BotonSW2(){
-  
-   if (n3 != contador3){
-              n3 = contador3 ;
-            
-              digitalWrite(Relay_2,!digitalRead(Relay_2));
-              if(digitalRead(Relay_2)){ Serial.println("Relay 2 ON!!");
-                                      }
-              else{ Serial.println("Relay 2 OFF!!");}
-             }
-    }
-
-void Servicio_Btn_Config(){
-       if ( millis() > T0  + 250)
-          {   contador++ ;
-              T0 = millis();
-            
-             }
-    }
-
-void Servicio_Sw_1(){ if ( millis() > T02  + 250){ 
-               contador2++ ;
-              T02 = millis();}
-    }
-
-void Servicio_Sw_2(){ if ( millis() > T03  + 500){ 
-              contador3++ ;
-              T03 = millis();
-             }
-    }
-
 void SensorHumTemp(){
 
   digitalWrite(Led_Verde,false);
@@ -803,10 +644,102 @@ void SensorHumTemp(){
   Serial.print("Tem: "+temp_str);
   Serial.println("  Hum: "+hum_str);
   digitalWrite(Led_Verde,true);
-
+  temp_str.toCharArray(temp, temp_str.length()+1); 
+  hum_str.toCharArray(hum, hum_str.length()+1); 
+  client.publish("prueba/sensor/temp/confirm",temp );
+  client.publish("prueba/sensor/hum/confirm",hum );
   
   }
+
+boolean antirebote(int pin){
+  int contadorN=0;
+  boolean estado=false;
+  boolean estadoAnterior=false;
+  do{
+    estado=digitalRead(pin);
+    if(estado != estadoAnterior){
+     
+      contadorN=0;
+      estadoAnterior=estado;      
+      }
+     else{
+      contadorN++;
+    }
+      delay(1);
+     }while(contadorN < tiempoAntirebote);
+
+    return estado;
+  }
+
+ void Botones(){
+
+    
+     estadoSw_1=digitalRead(Sw_1);
+     estadoSw_2=digitalRead(Sw_2);
   
+     
+      if(estadoSw_1!=estadoSw_1Anterior){
+          stateSw_1 = antirebote(Sw_1);
+          if(stateSw_1){
+            cuentaNSw_1++;
+            Serial.print("Pulsos Boton 1: ");Serial.println(cuentaNSw_1);
+            digitalWrite(Relay_1,!digitalRead(Relay_1));
+          }else{
+            cuentaNSw_1++;
+            Serial.print("Pulsos Boton 1: ");Serial.println(cuentaNSw_1);
+            digitalWrite(Relay_1,!digitalRead(Relay_1));
+          }
+        if(digitalRead(Relay_1)){
+            client.publish("prueba/light1/confirm", "Light 1 On");
+            Serial.println("Relay 1 ON!!");
+          }else{
+            client.publish("prueba/light1/confirm", "Light 1 Off");
+            Serial.println("Relay 1 OFF!!");}     
+        }
+  
+      if(estadoSw_2!=estadoSw_2Anterior){
+          stateSw_2 = antirebote(Sw_2);
+          if(stateSw_2){
+            cuentaNSw_2++;
+            Serial.print("Pulsos Boton 2: ");Serial.println(cuentaNSw_2);
+            digitalWrite(Relay_2,!digitalRead(Relay_2));
+          }else{
+            cuentaNSw_2++;
+            Serial.print("Pulsos Boton 2: ");Serial.println(cuentaNSw_2);
+            digitalWrite(Relay_2,!digitalRead(Relay_2));
+          }
+          if(digitalRead(Relay_2)){
+            client.publish("prueba/light2/confirm", "Light 2 On");
+            Serial.println("Relay 2 ON!!");
+          }else{
+            client.publish("prueba/light2/confirm", "Light 2 Off");
+            Serial.println("Relay 2 OFF!!");}     
+        }
+     
+      estadoSw_1Anterior=estadoSw_1; 
+      estadoSw_2Anterior=estadoSw_2; 
+
+ } 
+
+ void BotonConfiguracion(){
+  
+      estadoBtn_Config=!digitalRead(Btn_Config);
+      if(estadoBtn_Config!=estadoBtn_ConfigAnterior){
+          stateBtn_Config = antirebote(Btn_Config);
+          if(stateBtn_Config){
+            Serial.print("Solicitud para entrar en modo Configuracion...");
+            blink50();
+            modo=1;
+            EEPROM.write(0,modo);
+            EEPROM.commit();
+            delay(10);
+            ESP.reset();       
+          }       
+        }
+      estadoBtn_ConfigAnterior=estadoBtn_Config;
+  }
+ 
+ /*
 void Consumo_ACS712() {
  
   float ajuste=0.0;//-.08;
@@ -852,5 +785,5 @@ float TrueRMSMuestras(){
      return result;
   }
 
-
+*/
  
