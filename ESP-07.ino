@@ -37,30 +37,17 @@ const int tiempoAntirebote=20;
 int cuentaNSw_1=0;
 int cuentaNSw_2=0;
 
-boolean estadoSw_2=false;
-boolean estadoSw_2Anterior=false;
-boolean stateSw_2=false;
+boolean estadoSw_2=true;
+boolean estadoSw_2Anterior=true;
+boolean stateSw_2=true;
 
-boolean estadoSw_1=false;
-boolean estadoSw_1Anterior=false;
-boolean stateSw_1=false;
+boolean estadoSw_1=true;
+boolean estadoSw_1Anterior=true;
+boolean stateSw_1=true;
 
 boolean estadoBtn_Config=false;
 boolean estadoBtn_ConfigAnterior=false;
 boolean stateBtn_Config=false;
-
-/*
-Measuring AC Current Using ACS712
-
-const int sensorIn = A0;
-float  mVperAmp = 37.0;// 185; // use 100 for 20A Module and 66 for 30A Module
-float Voltage = 0;
-float VRMS = 0;
-float AmpsRMS = 0;
-float AmpFinalRMS=0;
-float PowRMS=0;
-////////////////////////////////
-*/
 
 
 int address = 0;
@@ -140,6 +127,7 @@ String pral = "<html>"
 void setup() {
 
 Serial.begin(115200);
+Serial.println();
 EEPROM.begin(512);
 
 //pinMode(A0,INPUT);
@@ -149,6 +137,8 @@ pinMode(Sw_1, INPUT);
 pinMode(Sw_2, INPUT);//tiene hardware antirebote
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
+//digitalWrite(Relay_1,false);
+//digitalWrite(Relay_2,false);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
 delay(10);
@@ -185,7 +175,7 @@ if(value){
             Serial.println();
 
       }else{    Serial.println("**********MODO NORMAL************");  
-         
+           
            
            ServerLan_leido= lee(dir_serverlan);
            ServerWan_leido= lee(dir_serverwan);
@@ -209,7 +199,7 @@ PubSubClient client(MQTT_SERVER_WAN, 1883, callback, wifiClient);
 void loop() {
       if(value){
         server.handleClient();
-        delay(400);
+        delay(500);
         digitalWrite(Led_Verde,!digitalRead(Led_Verde)); 
         }
       else{ 
@@ -255,29 +245,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if(topicStr == Topic2){
       if(payload[0] == '1'){
           digitalWrite(Relay_2, HIGH);
-        
           client.publish("prueba/light2/confirm", "Light 2 On");
-          
           }
       else{
           digitalWrite(Relay_2, LOW);
-          
-          client.publish("prueba/light2/confirm", "Light 2 Off");
-        
+         client.publish("prueba/light2/confirm", "Light 2 Off");
       }
-       
-   }
+    }
 
   if(topicStr == "prueba/sensor"){
        if(payload[0] == '1'){
            SensorHumTemp();
-        
-          }
-     }
-   if(topicStr == "prueba/reset"){
-       if(payload[0] == '1'){
-           ESP.reset();
-        
           }
      }
 }
@@ -413,23 +391,20 @@ void ReadDataEprom(){
   Topic2_leido=lee(dir_topic2);
   ServerWan_leido=lee(dir_serverwan);
   ServerLan_leido=lee(dir_serverlan);
-  Serial.println("lee");
-  
+ 
   ServerWan_leido = arregla_simbolos(ServerWan_leido); //Reemplazamos los simbolos que aparecen cun UTF8 por el simbolo correcto
   ServerLan_leido = arregla_simbolos(ServerLan_leido);
   ssid_leido = arregla_simbolos(ssid_leido); //Reemplazamos los simbolos que aparecen cun UTF8 por el simbolo correcto
   pass_leido = arregla_simbolos(pass_leido);
   Topic1_leido = arregla_simbolos(Topic1_leido); //Reemplazamos los simbolos que aparecen cun UTF8 por el simbolo correcto
   Topic2_leido = arregla_simbolos(Topic2_leido);
-  Serial.println("leido");
- 
+
   ServerWan_tamano = ServerWan_leido.length() ;  //Calculamos la cantidad de caracteres que tiene el ssid y la clave
   ServerLan_tamano = ServerLan_leido.length() ;
   ssid_tamano = ssid_leido.length() ;  //Calculamos la cantidad de caracteres que tiene el ssid y la clave
   pass_tamano = pass_leido.length();
   Topic1_tamano = Topic1_leido.length();  //Calculamos la cantidad de caracteres que tiene el ssid y la clave
   Topic2_tamano = Topic2_leido.length();
-  Serial.println("tamaño");
   
   ServerWan_leido.toCharArray(ServerWan, ServerWan_tamano); //Transformamos el string en un char array ya que es lo que nos pide WIFI.begin()
   ServerLan_leido.toCharArray(ServerLan, ServerLan_tamano);
@@ -437,8 +412,7 @@ void ReadDataEprom(){
   pass_leido.toCharArray(pass, pass_tamano);
   Topic1_leido.toCharArray(Topic1, Topic1_tamano); //Transf. el String en un char array ya que es lo que nos pide WiFi.begin()
   Topic2_leido.toCharArray(Topic2, Topic2_tamano);
-  Serial.println("leido.toArray");
-  
+ 
   }
 
 //**** CONFIGURACION WIFI  *******
@@ -567,35 +541,28 @@ void intento_conexion() {
   }
   
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.print("Conexion exitosa a: ");
+    Serial.print("Conexion exitosa a WIFI: ");
     Serial.println(ssid);
     Serial.println(WiFi.localIP());
     digitalWrite(Led_Verde,true);
     reconexionMQTT();
-   }
- 
+  }
  }
 
-/////////////   MQTT //////////////////// 
 void reconexionMQTT(){
 
     int cuenta=0;
     
     while (!client.connected()) {
-      
-       if (WiFi.status() != WL_CONNECTED) {
+      if (WiFi.status() != WL_CONNECTED) {
         ESP.reset();
        }
-
-       Botones();
-       BotonConfiguracion();
-     
-       Serial.println("Attempting MQTT connection...");
-
-      // Generate client name based on MAC address and last 8 bits of microsecond counter
+      Botones();
+      BotonConfiguracion();
+      Serial.println("Attempting MQTT connection...");
+    // Generate client name based on MAC address and last 8 bits of microsecond counter
       String clientName;
-      
-      clientName += "esp8266-";
+     clientName += "esp8266-";
       uint8_t mac[6];
       WiFi.macAddress(mac);
       clientName += macToStr(mac);
@@ -606,10 +573,10 @@ void reconexionMQTT(){
         client.subscribe(Topic1);
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
-        client.subscribe("prueba/AmpsRMS");
-        client.subscribe("prueba/PowRMS"); 
-          client.subscribe("prueba/reset");       
-        SensorHumTemp();
+        //client.subscribe("prueba/AmpsRMS");
+        //client.subscribe("prueba/PowRMS"); 
+        //client.subscribe("prueba/reset");       
+      //  SensorHumTemp();
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
       }
@@ -633,8 +600,6 @@ void reconexionMQTT(){
       
   
   }
-
-/////////////// FIN MQTT //////////////////////
 
 void SensorHumTemp(){
 
@@ -662,8 +627,8 @@ void SensorHumTemp(){
 
 boolean antirebote(int pin){
   int contadorN=0;
-  boolean estado=false;
-  boolean estadoAnterior=false;
+  boolean estado=true;
+  boolean estadoAnterior=true;
   do{
     estado=digitalRead(pin);
     if(estado != estadoAnterior){
@@ -680,7 +645,7 @@ boolean antirebote(int pin){
     return estado;
   }
 
- void Botones(){
+void Botones(){
 
     
      estadoSw_1=digitalRead(Sw_1);
@@ -730,7 +695,7 @@ boolean antirebote(int pin){
 
  } 
 
- void BotonConfiguracion(){
+void BotonConfiguracion(){
   
       estadoBtn_Config=!digitalRead(Btn_Config);
       if(estadoBtn_Config!=estadoBtn_ConfigAnterior){
@@ -748,51 +713,4 @@ boolean antirebote(int pin){
       estadoBtn_ConfigAnterior=estadoBtn_Config;
   }
  
- /*
-void Consumo_ACS712() {
- 
-  float ajuste=0.0;//-.08;
-  float Voltaje;
-
-  digitalWrite(Led_Verde,false);
-  AmpsRMS=(TrueRMSMuestras()*1000)/mVperAmp;///0.037;
-  AmpFinalRMS=AmpsRMS+ajuste;
-  
-  if(AmpFinalRMS<0.040){// 1 muestra 26.1 mA =>mVperAmp 37mv
-    AmpFinalRMS=0;
-   
-    }
-  
-  PowRMS=220.0*AmpFinalRMS;
-   
-  PowRMS_str=String(PowRMS);
-  AmpsRMS_str=String(AmpFinalRMS);
-  Serial.print("AmpFinalRMS:");Serial.println(AmpFinalRMS);
-  Serial.print("PowRMS:");Serial.println(PowRMS);
-  digitalWrite(Led_Verde,true);
-}
-
-float TrueRMSMuestras(){
-  
-  float result=0,conv=0,Acumulador=0,suma=0;
-  int readValue;             //value read from the sensor
-  int Count=0;
-  uint32_t start_time = millis();
-  // while((millis()-start_time )< 200){ 
-  while(Count < 400) 
-   {   
-       delayMicroseconds(960); 
-       //delayMicroseconds(500); 
-       Count++;
-       readValue = analogRead(A0);
-       conv=(((readValue-511)*1.0)/1024.0);
-       Acumulador=Acumulador+sq(conv);
-      
-   }
-     suma=Acumulador/Count;
-     result=sqrt(suma);
-     return result;
-  }
-
-*/
  
