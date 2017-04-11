@@ -12,11 +12,12 @@ SimpleDHT11 dht11;
 
 const int Btn_Config=0;// boton configuracion
 const int Led_Verde=16;// boton para la señalizacion del estado del modulo
-const int Sw_1=12;
-const int Sw_2=13;
-const int Relay_1=4;
-const int Relay_2=5;
+const int Sw_1= 12;
+const int Sw_2= 13;
+const int Relay_1= 4;
+const int Relay_2= 5 ;
 const int pinDHT11 = 2;
+const int pinPIR = 14;
 const int Adc_Analog=A0;
 
 //********** fin pines **********************
@@ -34,20 +35,25 @@ char adc[10];
 //////////////////////// AGREGADO NUEVO ANTIREBOTE
 
 const int tiempoAntirebote=20;
-int cuentaNSw_1=0;
-int cuentaNSw_2=0;
+int cuentaNSw_1= 0;
+int cuentaNSw_2= 0;
+int cuentaNpinPIR= 0;
 
-boolean estadoSw_2=true;
-boolean estadoSw_2Anterior=true;
-boolean stateSw_2=true;
+boolean estadoSw_2= true;
+boolean estadoSw_2Anterior= true;
+boolean stateSw_2= true;
 
-boolean estadoSw_1=true;
-boolean estadoSw_1Anterior=true;
-boolean stateSw_1=true;
+boolean estadoSw_1= true;
+boolean estadoSw_1Anterior= true;
+boolean stateSw_1= true;
 
-boolean estadoBtn_Config=false;
-boolean estadoBtn_ConfigAnterior=false;
-boolean stateBtn_Config=false;
+boolean estadoBtn_Config= false;
+boolean estadoBtn_ConfigAnterior= false;
+boolean stateBtn_Config= false;
+
+boolean estadopinPIR= false;
+boolean estadopinPIRAnterior= false;
+boolean statepinPIR= false;
 
 
 int address = 0;
@@ -131,13 +137,14 @@ Serial.println();
 EEPROM.begin(512);
 
 //pinMode(A0,INPUT);
+pinMode(pinPIR,INPUT);
 pinMode(Btn_Config, INPUT);
 pinMode(Led_Verde,OUTPUT);
 pinMode(Sw_1, INPUT);
 pinMode(Sw_2, INPUT);//tiene hardware antirebote
 pinMode(Relay_1,OUTPUT);
 pinMode(Relay_2,OUTPUT);
-//digitalWrite(Relay_1,false);
+digitalWrite(Led_Verde,true);
 //digitalWrite(Relay_2,false);
   
 value = EEPROM.read(0);//carga el valor 1 si no esta configurado o 0 si esta configurado
@@ -201,7 +208,7 @@ void loop() {
         server.handleClient();
         delay(500);
         digitalWrite(Led_Verde,!digitalRead(Led_Verde)); 
-        }
+         }
       else{ 
        //maintain MQTT connection
        client.loop();
@@ -212,11 +219,8 @@ void loop() {
            digitalWrite(Led_Verde,false);
            intento_conexion();
          }
-
-          Botones();
-    
+         Botones();
        }
-  
    BotonConfiguracion();
 }
 
@@ -343,6 +347,18 @@ void blink50(){
     digitalWrite(Led_Verde,false);
     delay(30);
      }
+
+void blink_100(){
+    int pin=digitalRead(pinPIR);
+    digitalWrite(Led_Verde,!pin);
+    delay(50);
+    digitalWrite(Led_Verde,pin);
+    delay(50);
+    digitalWrite(Led_Verde,!pin);
+    delay(50);
+    digitalWrite(Led_Verde,pin);
+  
+  }
 
 void blinkLento(){
     digitalWrite(Led_Verde,false);
@@ -533,6 +549,8 @@ void intento_conexion() {
       delay(400);
       blink50();
       cuenta++;
+    //  Botones();
+      BotonConfiguracion();
       if (cuenta > 20) {
         Serial.println("Fallo al conectar");
         return;
@@ -557,7 +575,7 @@ void reconexionMQTT(){
       if (WiFi.status() != WL_CONNECTED) {
         ESP.reset();
        }
-      Botones();
+      //Botones();
       BotonConfiguracion();
       Serial.println("Attempting MQTT connection...");
     // Generate client name based on MAC address and last 8 bits of microsecond counter
@@ -573,10 +591,6 @@ void reconexionMQTT(){
         client.subscribe(Topic1);
         client.subscribe(Topic2);
         client.subscribe("prueba/sensor");
-        //client.subscribe("prueba/AmpsRMS");
-        //client.subscribe("prueba/PowRMS"); 
-        //client.subscribe("prueba/reset");       
-      //  SensorHumTemp();
         digitalWrite(Led_Verde,true);// wifi + mqtt ok !!!
         Serial.println("MTQQ Connected");
       }
@@ -588,7 +602,7 @@ void reconexionMQTT(){
            Serial.println(client.state());
            Serial.println(" try again in 3 seconds");
            // Wait 3 seconds before retrying
-           blinkLento();
+         //  blinkLento();
            cuenta++;   
            Serial.print("cuenta: ");Serial.println(cuenta);
            if(cuenta>4){
@@ -597,9 +611,7 @@ void reconexionMQTT(){
              }
          }
     }
-      
-  
-  }
+ }
 
 void SensorHumTemp(){
 
@@ -646,21 +658,15 @@ boolean antirebote(int pin){
   }
 
 void Botones(){
-
-    
+//////********  BOTON 1    
      estadoSw_1=digitalRead(Sw_1);
-     estadoSw_2=digitalRead(Sw_2);
-  
-     
-      if(estadoSw_1!=estadoSw_1Anterior){
+     if(estadoSw_1!=estadoSw_1Anterior){
           stateSw_1 = antirebote(Sw_1);
           if(stateSw_1){
             cuentaNSw_1++;
-            Serial.print("Pulsos Boton 1: ");Serial.println(cuentaNSw_1);
             digitalWrite(Relay_1,!digitalRead(Relay_1));
           }else{
             cuentaNSw_1++;
-            Serial.print("Pulsos Boton 1: ");Serial.println(cuentaNSw_1);
             digitalWrite(Relay_1,!digitalRead(Relay_1));
           }
         if(digitalRead(Relay_1)){
@@ -670,28 +676,42 @@ void Botones(){
             client.publish("prueba/light1/confirm", "Light 1 Off");
             Serial.println("Relay 1 OFF!!");}     
         }
-  
-      if(estadoSw_2!=estadoSw_2Anterior){
+     estadoSw_1Anterior=estadoSw_1; 
+//////********  BOTON 2  
+     estadoSw_2=digitalRead(Sw_2);
+     if(estadoSw_2!=estadoSw_2Anterior){
           stateSw_2 = antirebote(Sw_2);
           if(stateSw_2){
             cuentaNSw_2++;
-            Serial.print("Pulsos Boton 2: ");Serial.println(cuentaNSw_2);
             digitalWrite(Relay_2,!digitalRead(Relay_2));
+            
           }else{
             cuentaNSw_2++;
-            Serial.print("Pulsos Boton 2: ");Serial.println(cuentaNSw_2);
             digitalWrite(Relay_2,!digitalRead(Relay_2));
           }
           if(digitalRead(Relay_2)){
             client.publish("prueba/light2/confirm", "Light 2 On");
-            Serial.println("Relay 2 ON!!");
+            Serial.println("Relay 2 ON !!");
           }else{
             client.publish("prueba/light2/confirm", "Light 2 Off");
-            Serial.println("Relay 2 OFF!!");}     
+            Serial.println("Relay 2 OFF !!");}     
         }
-     
-      estadoSw_1Anterior=estadoSw_1; 
-      estadoSw_2Anterior=estadoSw_2; 
+     estadoSw_2Anterior=estadoSw_2; 
+//////********  PIR 
+     estadopinPIR=digitalRead(pinPIR);
+     if(estadopinPIR!=estadopinPIRAnterior){
+          statepinPIR = antirebote(pinPIR);
+          if(statepinPIR){
+              blink_100();
+              client.publish("prueba/pir/confirm", "PIR On");
+              Serial.println("PIR ON !!");
+          }else{
+                client.publish("prueba/pir/confirm", "PIR Off");         
+                  Serial.println("PIR OFF !!");   
+            }
+         
+      }
+      estadopinPIRAnterior=estadopinPIR;
 
  } 
 
