@@ -513,7 +513,7 @@ void wifi_conf() {
   + "<br> Server Lan MQTT: " + getServerLan + ".<br>" 
   + "<br>El equipo se reiniciara Conectandose a la red configurada."));
   delay(50);
-  ESP.reset();
+  ESP.restart();
 }
 
 void intento_conexion() {
@@ -573,7 +573,7 @@ void reconexionMQTT(){
     
     while (!client.connected()) {
       if (WiFi.status() != WL_CONNECTED) {
-        ESP.reset();
+        ESP.restart();
        }
       //Botones();
       BotonConfiguracion();
@@ -607,7 +607,7 @@ void reconexionMQTT(){
            Serial.print("cuenta: ");Serial.println(cuenta);
            if(cuenta>4){
             Serial.println("abortooo");
-              ESP.reset();
+              ESP.restart();
              }
          }
     }
@@ -727,7 +727,8 @@ void BotonConfiguracion(){
             EEPROM.write(0,modo);
             EEPROM.commit();
             delay(10);
-            ESP.reset();       
+           ESP.restart();       
+           
           }       
         }
       estadoBtn_ConfigAnterior=estadoBtn_Config;
