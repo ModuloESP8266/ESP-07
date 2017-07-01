@@ -5,7 +5,8 @@
 #include <SimpleDHT.h>
 
 #define MQTT_SERVER_LAN "192.168.1.106"
-#define MQTT_SERVER_WAN "giovanazzi.ddns.net"
+//#define MQTT_SERVER_WAN "giovanazzi.ddns.net"
+#define MQTT_SERVER_WAN "idirect.dlinkddns.com"
 
 SimpleDHT11 dht11;
 //**************** PINES     ****************
@@ -201,9 +202,10 @@ if(value){
   EEPROM.commit();
 }
 
-PubSubClient client(MQTT_SERVER_WAN, 1883, callback, wifiClient);
+PubSubClient client(SERVER_WAN, 1883, callback, wifiClient);
 
 void loop() {
+   Botones();
       if(value){
         server.handleClient();
         delay(500);
@@ -221,6 +223,7 @@ void loop() {
          }
          Botones();
        }
+       
    BotonConfiguracion();
 }
 
@@ -549,7 +552,7 @@ void intento_conexion() {
       delay(400);
       blink50();
       cuenta++;
-    //  Botones();
+      Botones();
       BotonConfiguracion();
       if (cuenta > 20) {
         Serial.println("Fallo al conectar");
@@ -575,7 +578,7 @@ void reconexionMQTT(){
       if (WiFi.status() != WL_CONNECTED) {
         ESP.restart();
        }
-      //Botones();
+      Botones();
       BotonConfiguracion();
       Serial.println("Attempting MQTT connection...");
     // Generate client name based on MAC address and last 8 bits of microsecond counter
