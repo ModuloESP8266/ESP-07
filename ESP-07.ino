@@ -6,7 +6,7 @@
 
 #define MQTT_SERVER_LAN "192.168.1.106"
 //#define MQTT_SERVER_WAN "giovanazzi.ddns.net"
-#define MQTT_SERVER_WAN "idirect.dlinkddns.com"
+#define MQTT_SERVER_WAN "giovanazzi.dyndns-free.com"
 
 SimpleDHT11 dht11;
 //**************** PINES     ****************
